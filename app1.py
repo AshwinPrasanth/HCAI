@@ -1,6 +1,10 @@
 import random
 import time
 import subprocess
+import base64
+import io
+import time
+
 
 # === Pre-scripted Question Bank ===
 premade_data = {
@@ -215,48 +219,68 @@ with st.sidebar:
     if st.button("History", use_container_width=True):
         st.session_state.view = "history"
 
+# ===============================
+# Sidebar Save & Clear (Auto-download + Rerun)
+# ===============================
     if st.button("Save & Clear", use_container_width=True):
         if st.session_state.chat_history:
-            # Ensure folder exists
-            os.makedirs("responses", exist_ok=True)
-            csv_path = "responses/all_responses.csv"
+        # Ensure folder exists
+         os.makedirs("responses", exist_ok=True)
+         csv_path = "responses/all_responses.csv"
 
-            # Create DataFrame for this session
-            df_new = pd.DataFrame(st.session_state.chat_history)
+        # Add optional session ID
+         if "session_id" not in st.session_state:
+            st.session_state.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # If file exists, append; else create
-            if os.path.exists(csv_path):
-                df_existing = pd.read_csv(csv_path)
-                df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-                df_combined.to_csv(csv_path, index=False)
-                st.success("✅ Chat appended to existing CSV file.")
-            else:
-                df_new.to_csv(csv_path, index=False)
-                st.success("✅ New CSV file created and chat saved.")
+         df_new = pd.DataFrame(st.session_state.chat_history)
+         df_new["session_id"] = st.session_state.session_id
 
-        # Prepare download of updated CSV
-            import io
-            csv_buffer = io.StringIO()
-            pd.read_csv(csv_path).to_csv(csv_buffer, index=False)
-            csv_data = csv_buffer.getvalue().encode("utf-8")
+        # Append or create CSV
+         if os.path.exists(csv_path):
+            df_existing = pd.read_csv(csv_path)
+            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            df_combined.to_csv(csv_path, index=False)
+            st.success("✅ Chat appended to existing CSV file.")
+         else:
+            df_new.to_csv(csv_path, index=False)
+            st.success("✅ New CSV file created and chat saved.")
 
-            st.download_button(
-            label="📥 Download Updated CSV",
-            data=csv_data,
-            file_name="all_responses.csv",
-            mime="text/csv",
-            use_container_width=True
-            )
+        # --- Prepare CSV for auto-download ---
+         csv_buffer = io.StringIO()
+         updated_df = pd.read_csv(csv_path)
+         updated_df.to_csv(csv_buffer, index=False)
+         csv_data = csv_buffer.getvalue()
 
-        # Reset session state
-            st.session_state.data = get_fresh_data()
-            st.session_state.current_theme_index = 0
-            st.session_state.round_number = 1
-            st.session_state.question_count_in_round = 0
-            st.session_state.chat_history = []
-            st.session_state.latest_entry = None
-            st.session_state.view = "chatbot"
-            st.rerun()
+        # Convert to base64 for browser download
+         b64 = base64.b64encode(csv_data.encode()).decode()
+         href = f'<a href="data:file/csv;base64,{b64}" download="all_responses.csv" id="auto_dl"></a>'
+
+        # Trigger download automatically
+         st.markdown(href, unsafe_allow_html=True)
+         st.markdown(
+            """
+            <script>
+            setTimeout(function() {
+                document.getElementById('auto_dl').click();
+            }, 1000);
+            </script>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Info message
+         st.info("📥 Downloading CSV automatically...")
+
+        # Reset app state (after short pause so download can start)
+         time.sleep(1.5)
+         st.session_state.data = get_fresh_data()
+         st.session_state.current_theme_index = 0
+         st.session_state.round_number = 1
+         st.session_state.question_count_in_round = 0
+         st.session_state.chat_history = []
+         st.session_state.latest_entry = None
+         st.session_state.view = "chatbot"
+         st.rerun()
 
 
 # ===============================
