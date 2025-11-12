@@ -235,7 +235,7 @@ with st.sidebar:
                     subprocess.run(["git", "commit", "-m", "Update chat history"], check=False)
                     subprocess.run([
                     "git", "push",
-                    f"https://{token}@github.com/AshwinPrasanth/HCAI"
+                    f"https://{token}@github.com/AshwinPrasanth/HCAI.git"
                 ], check=True)
                     st.success("✅ Chat saved and pushed to GitHub.")
             except Exception as e:
