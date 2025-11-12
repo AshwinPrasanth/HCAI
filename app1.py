@@ -229,17 +229,30 @@ with st.sidebar:
                 if token is None:
                     st.warning("⚠️ GitHub token not found. Add GITHUB_TOKEN in Streamlit secrets.")
                 else:
+                    # Create timestamped log for safety
+                    os.makedirs("chat_logs", exist_ok=True)
+                    log_name = f"chat_logs/chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                    df.to_csv(log_name, index=False)
+
+                    # --- Git configuration ---
                     subprocess.run(["git", "config", "--global", "user.email", "bot@streamlit.io"])
                     subprocess.run(["git", "config", "--global", "user.name", "StreamlitBot"])
-                    subprocess.run(["git", "add", "chat_history.csv"])
-                    subprocess.run(["git", "commit", "-m", "Update chat history"], check=False)
-                    subprocess.run([
-                    "git", "push",
-                    f"https://{token}@github.com/AshwinPrasanth/HCAI.git"
-                ], check=True)
-                    st.success("✅ Chat saved and pushed to GitHub.")
+                    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/app"])  # important for Streamlit Cloud
+
+                    # --- Commit and push ---
+                    commit_msg = f"Add chat log {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    subprocess.run(["git", "add", log_name])
+                    subprocess.run(["git", "commit", "-m", commit_msg], check=False)
+
+                    push_url = f"https://{token}@github.com/AshwinPrasanth/HCAI.git"
+                    subprocess.run(["git", "push", push_url], check=True)
+                    st.success(f"✅ Chat log pushed to GitHub: {log_name}")
+
+            except subprocess.CalledProcessError as e:
+                st.error(f"❌ Git push failed (CalledProcessError): {e}")
             except Exception as e:
-                st.error(f"❌ Git push failed: {e}")
+                st.error(f"❌ Unexpected error: {e}")
+
 
 # ===============================
 # Round Mood Logic (Food→Weather alternation)
