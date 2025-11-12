@@ -1,5 +1,6 @@
 import random
 import time
+import subprocess
 
 # === Pre-scripted Question Bank ===
 premade_data = {
@@ -216,16 +217,29 @@ with st.sidebar:
 
     if st.button("Save & Clear", use_container_width=True):
         if st.session_state.chat_history:
-            save_chat_history_to_csv(st.session_state.chat_history)
-            st.success("Chat saved to chat_history.csv")
-        st.session_state.data = get_fresh_data()
-        st.session_state.current_theme_index = 0
-        st.session_state.round_number = 1
-        st.session_state.question_count_in_round = 0
-        st.session_state.chat_history = []
-        st.session_state.latest_entry = None
-        st.session_state.view = "chatbot"
-        st.rerun()
+            # Save to CSV
+            df = pd.DataFrame(st.session_state.chat_history)
+            df.to_csv("chat_history.csv", index=False)
+
+            # ✅ Git Push logic
+            try:
+                repo_url = os.getenv("REPO_URL", "https://github.com/AshwinPrasanth/HCAI")
+                token = os.getenv("GITHUB_TOKEN")
+
+                if token is None:
+                    st.warning("⚠️ GitHub token not found. Add GITHUB_TOKEN in Streamlit secrets.")
+                else:
+                    subprocess.run(["git", "config", "--global", "user.email", "bot@streamlit.io"])
+                    subprocess.run(["git", "config", "--global", "user.name", "StreamlitBot"])
+                    subprocess.run(["git", "add", "chat_history.csv"])
+                    subprocess.run(["git", "commit", "-m", "Update chat history"], check=False)
+                    subprocess.run([
+                    "git", "push",
+                    f"https://{token}@github.com/YOUR_USERNAME/YOUR_REPO.git"
+                ], check=True)
+                    st.success("✅ Chat saved and pushed to GitHub.")
+            except Exception as e:
+                st.error(f"❌ Git push failed: {e}")
 
 # ===============================
 # Round Mood Logic (Food→Weather alternation)
