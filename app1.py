@@ -217,41 +217,46 @@ with st.sidebar:
 
     if st.button("Save & Clear", use_container_width=True):
         if st.session_state.chat_history:
-            # Save to CSV
-            df = pd.DataFrame(st.session_state.chat_history)
-            df.to_csv("chat_history.csv", index=False)
+            # Ensure folder exists
+            os.makedirs("responses", exist_ok=True)
+            csv_path = "responses/all_responses.csv"
 
-            # ✅ Git Push logic
-            try:
-                repo_url = os.getenv("REPO_URL", "https://github.com/AshwinPrasanth/HCAI.git")
-                token = os.getenv("GITHUB_TOKEN")
+            # Create DataFrame for this session
+            df_new = pd.DataFrame(st.session_state.chat_history)
 
-                if token is None:
-                    st.warning("⚠️ GitHub token not found. Add GITHUB_TOKEN in Streamlit secrets.")
-                else:
-                    # Create timestamped log for safety
-                    os.makedirs("chat_logs", exist_ok=True)
-                    log_name = f"chat_logs/chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                    df.to_csv(log_name, index=False)
+            # If file exists, append; else create
+            if os.path.exists(csv_path):
+                df_existing = pd.read_csv(csv_path)
+                df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+                df_combined.to_csv(csv_path, index=False)
+                st.success("✅ Chat appended to existing CSV file.")
+            else:
+                df_new.to_csv(csv_path, index=False)
+                st.success("✅ New CSV file created and chat saved.")
 
-                    # --- Git configuration ---
-                    subprocess.run(["git", "config", "--global", "user.email", "bot@streamlit.io"])
-                    subprocess.run(["git", "config", "--global", "user.name", "StreamlitBot"])
-                    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/app"])  # important for Streamlit Cloud
+        # Prepare download of updated CSV
+            import io
+            csv_buffer = io.StringIO()
+            pd.read_csv(csv_path).to_csv(csv_buffer, index=False)
+            csv_data = csv_buffer.getvalue().encode("utf-8")
 
-                    # --- Commit and push ---
-                    commit_msg = f"Add chat log {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                    subprocess.run(["git", "add", log_name])
-                    subprocess.run(["git", "commit", "-m", commit_msg], check=False)
+            st.download_button(
+            label="📥 Download Updated CSV",
+            data=csv_data,
+            file_name="all_responses.csv",
+            mime="text/csv",
+            use_container_width=True
+            )
 
-                    push_url = f"https://{token}@github.com/AshwinPrasanth/HCAI.git"
-                    subprocess.run(["git", "push", push_url], check=True)
-                    st.success(f"✅ Chat log pushed to GitHub: {log_name}")
-
-            except subprocess.CalledProcessError as e:
-                st.error(f"❌ Git push failed (CalledProcessError): {e}")
-            except Exception as e:
-                st.error(f"❌ Unexpected error: {e}")
+        # Reset session state
+            st.session_state.data = get_fresh_data()
+            st.session_state.current_theme_index = 0
+            st.session_state.round_number = 1
+            st.session_state.question_count_in_round = 0
+            st.session_state.chat_history = []
+            st.session_state.latest_entry = None
+            st.session_state.view = "chatbot"
+            st.rerun()
 
 
 # ===============================
