@@ -223,7 +223,7 @@ with st.sidebar:
 
             # ✅ Git Push logic
             try:
-                repo_url = os.getenv("REPO_URL", "https://github.com/AshwinPrasanth/HCAI")
+                repo_url = os.getenv("REPO_URL", "https://github.com/AshwinPrasanth/HCAI.git")
                 token = os.getenv("GITHUB_TOKEN")
 
                 if token is None:
