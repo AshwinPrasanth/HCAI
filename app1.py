@@ -1,10 +1,5 @@
 import random
 import time
-import subprocess
-import base64
-import io
-import time
-
 
 # === Pre-scripted Question Bank ===
 premade_data = {
@@ -219,69 +214,18 @@ with st.sidebar:
     if st.button("History", use_container_width=True):
         st.session_state.view = "history"
 
-# ===============================
-# Sidebar Save & Clear (Auto-download + Rerun)
-# ===============================
     if st.button("Save & Clear", use_container_width=True):
         if st.session_state.chat_history:
-        # Ensure folder exists
-         os.makedirs("responses", exist_ok=True)
-         csv_path = "responses/all_responses.csv"
-
-        # Add optional session ID
-         if "session_id" not in st.session_state:
-            st.session_state.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-         df_new = pd.DataFrame(st.session_state.chat_history)
-         df_new["session_id"] = st.session_state.session_id
-
-        # Append or create CSV
-         if os.path.exists(csv_path):
-            df_existing = pd.read_csv(csv_path)
-            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-            df_combined.to_csv(csv_path, index=False)
-            st.success("✅ Chat appended to existing CSV file.")
-         else:
-            df_new.to_csv(csv_path, index=False)
-            st.success("✅ New CSV file created and chat saved.")
-
-        # --- Prepare CSV for auto-download ---
-         csv_buffer = io.StringIO()
-         updated_df = pd.read_csv(csv_path)
-         updated_df.to_csv(csv_buffer, index=False)
-         csv_data = csv_buffer.getvalue()
-
-        # Convert to base64 for browser download
-         b64 = base64.b64encode(csv_data.encode()).decode()
-         href = f'<a href="data:file/csv;base64,{b64}" download="all_responses.csv" id="auto_dl"></a>'
-
-        # Trigger download automatically
-         st.markdown(href, unsafe_allow_html=True)
-         st.markdown(
-            """
-            <script>
-            setTimeout(function() {
-                document.getElementById('auto_dl').click();
-            }, 1000);
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # Info message
-         st.info("📥 Downloading CSV automatically...")
-
-        # Reset app state (after short pause so download can start)
-         time.sleep(1.5)
-         st.session_state.data = get_fresh_data()
-         st.session_state.current_theme_index = 0
-         st.session_state.round_number = 1
-         st.session_state.question_count_in_round = 0
-         st.session_state.chat_history = []
-         st.session_state.latest_entry = None
-         st.session_state.view = "chatbot"
-         st.rerun()
-
+            save_chat_history_to_csv(st.session_state.chat_history)
+            st.success("Chat saved to chat_history.csv")
+        st.session_state.data = get_fresh_data()
+        st.session_state.current_theme_index = 0
+        st.session_state.round_number = 1
+        st.session_state.question_count_in_round = 0
+        st.session_state.chat_history = []
+        st.session_state.latest_entry = None
+        st.session_state.view = "chatbot"
+        st.rerun()
 
 # ===============================
 # Round Mood Logic (Food→Weather alternation)
@@ -356,10 +300,20 @@ if st.session_state.view == "chatbot":
         st.markdown(f"**You ({latest['theme'].capitalize()}):** {latest['question']}")
 
         # Color-coded by sentiment
-        if latest["sentiment"] == "positive":
-            st.success(f"**Bot:** {latest['answer']}")  # Green
-        else:
-            st.error(f"**Bot:** {latest['answer']}")    # Red
+        st.markdown(
+    f"""
+    <div style="
+        background-color:#dbefff;
+        padding:12px;
+        border-radius:8px;
+        border:1px solid #b4d8f7;
+        margin-top:8px;
+    ">
+        <b>Bot:</b> {latest['answer']}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # ===============================
 # MAIN VIEW 2: History Panel
